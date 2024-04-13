@@ -40,6 +40,7 @@ DB_URL = (
 
 assert DB_URL is not None, "DB_URL environment variable needed."
 
+
 class UnitOfWork:
     """Unit of work pattern implementation"""
 

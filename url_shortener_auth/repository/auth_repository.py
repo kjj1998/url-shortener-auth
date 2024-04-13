@@ -7,7 +7,7 @@ from sqlalchemy.sql import text
 from sqlalchemy import select
 
 from url_shortener_auth.repository.models import UserModel
-from url_shortener_auth.auth_service.auth import Auth
+from url_shortener_auth.auth_service.auth import User
 
 
 class AuthRepository:
@@ -16,7 +16,7 @@ class AuthRepository:
     def __init__(self, session):
         self.session = session
 
-    def get_user_by_username(self, username) -> Auth:
+    def get_user_by_username(self, username) -> User:
         """Get the user by username"""
 
         user_model: UserModel = (
@@ -24,11 +24,11 @@ class AuthRepository:
         )
 
         if user_model:
-            return Auth(**user_model.dict())
+            return User(**user_model.dict())
 
         return None
 
-    def create_user(self, username, password) -> Auth:
+    def create_user(self, username, password) -> User:
         """Create a new user"""
 
         record = UserModel(username=username, password=password)
@@ -40,7 +40,7 @@ class AuthRepository:
             self.session.rollback()
             print("Database:", error)
 
-        return Auth(**record.dict())
+        return User(**record.dict())
 
     def update_user_last_login(self, username):
         """Update the last login time of the user"""
