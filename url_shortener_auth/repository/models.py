@@ -11,6 +11,7 @@ Base = declarative_base()
 class UserModel(Base): # pylint: disable=too-few-public-methods
     """User SQL model"""
 
+    __table_args__ = {'schema' : 'user_schema'}
     __tablename__ = "user"
 
     username = Column(String, primary_key=True, nullable=False)

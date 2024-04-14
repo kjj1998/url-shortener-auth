@@ -4,7 +4,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-# from url_shortener.web.api.api import router as url_shortener_router
+from url_shortener_auth.web.api.api import router as url_shortener_auth_router
 
 app = FastAPI()
 
@@ -18,7 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# app.include_router(url_shortener_router, tags=["url_shortener"])
+app.include_router(url_shortener_auth_router, tags=["url_shortener_auth"])
 
 
 @app.get("/")

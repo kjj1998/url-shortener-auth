@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from url_shortener_auth.repository.auth_repository import AuthRepository
 from url_shortener_auth.auth_service.auth_service import AuthService
-from url_shortener_auth.web.api.schemas import Token
+from url_shortener_auth.web.api.schemas import Token, UserReceive, UserReturn
 from url_shortener_auth.repository.unit_of_work import UnitOfWork
 from url_shortener_auth.auth_service.auth import User
 
@@ -46,3 +46,23 @@ async def login_for_access_token(
         )
 
         return Token(access_token=access_token, token_type="bearer")
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserReturn)
+def register_user(user: UserReceive) -> UserReturn:
+    """Register a new user"""
+
+    with UnitOfWork() as unit_of_work:
+        repo: AuthRepository = AuthRepository(unit_of_work.session)
+        auth_service: AuthService = AuthService(repo)
+
+        if auth_service.get_user(repo, user.username):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User already registered",
+            )
+
+        user = auth_service.create_user(repo, user.username, user.password)
+
+        return user.dict()
+
