@@ -26,5 +26,6 @@ class UserModel(Base): # pylint: disable=too-few-public-methods
         return {
             "username": self.username,
             "created_at": self.created_at,
+            "hashed_password": self.password,
             "last_login_at": self.last_login_at,
         }

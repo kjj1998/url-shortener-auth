@@ -23,8 +23,8 @@ class UserReceive(User):
     password: str
 
 
-class UserReturn(UserReceive):
+class UserReturn(User):
     """Schema for the user object to return to the client"""
 
     created_at: datetime
-    last_login_at: datetime
+    last_login_at: datetime | None

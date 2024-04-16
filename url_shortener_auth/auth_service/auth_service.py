@@ -44,7 +44,9 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), os.getenv("HS256"))
         return encoded_jwt
 
-    def authenticate_user(self, repo: AuthRepository, username:str, password: str) -> User | bool:
+    def authenticate_user(
+        self, repo: AuthRepository, username: str, password: str
+    ) -> User | bool:
         """Authenticate the user"""
 
         user: User = repo.get_user_by_username(username)
@@ -54,3 +56,19 @@ class AuthService:
             return False
 
         return user
+
+    def get_user(self, repo: AuthRepository, username: str) -> User:
+        """Retrieve the user"""
+
+        return repo.get_user_by_username(username)
+
+    def create_user(self, repo: AuthRepository, username: str, password: str) -> User:
+        """Create a new user"""
+
+        if repo.get_user_by_username(username):
+            return None
+
+        hashed_password = self.get_password_hash(password)
+        newly_created_user: User = repo.create_user(username, hashed_password)
+
+        return newly_created_user

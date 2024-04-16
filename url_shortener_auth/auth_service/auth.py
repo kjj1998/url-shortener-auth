@@ -4,9 +4,9 @@
 class User: # pylint: disable=too-few-public-methods
     """User business object"""
 
-    def __init__(self, username, password, created_at, last_login_at):
+    def __init__(self, username, hashed_password, created_at, last_login_at):
         self.username = username
-        self.hashed_password = password
+        self.hashed_password = hashed_password
         self.created_at = created_at
         self.last_login_at = last_login_at
 
