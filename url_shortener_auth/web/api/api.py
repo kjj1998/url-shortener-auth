@@ -1,21 +1,25 @@
 """APIs for the URL shortener authentication service."""
 
+import os
+
 from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from url_shortener_auth.repository.auth_repository import AuthRepository
 from url_shortener_auth.auth_service.auth_service import AuthService
-from url_shortener_auth.web.api.schemas import Token, UserReceive, UserReturn
+from url_shortener_auth.web.api.schemas import Token, UserReceive, UserReturn, TokenData
 from url_shortener_auth.repository.unit_of_work import UnitOfWork
 from url_shortener_auth.auth_service.auth import User
+from jose import JWTError, jwt
 
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 ALGORITHM = "HS256"
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @router.post("/token")
@@ -70,6 +74,39 @@ def register_user(user: UserReceive) -> UserReturn:
             created_at=user.created_at,
             last_login_at=user.last_login_at,
         )
+
+@router.get("/users/me/", response_model=UserReturn)
+async def get_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    """Get the user details based on information stored in the token"""
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(token, os.getenv("SECRET_KEY"), os.getenv("ALGORITHM"))
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except JWTError as exc:
+        raise credentials_exception from exc
+
+    with UnitOfWork() as unit_of_work:
+        repo: AuthRepository = AuthRepository(unit_of_work.session)
+        auth_service: AuthService = AuthService(repo)
+
+        user = auth_service.get_user(repo, token_data.username)
+
+    if user is None:
+        raise credentials_exception
+    return UserReturn(
+        username=user.username,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
+    )
 
 
 @router.get("/health/storage_health", status_code=status.HTTP_200_OK)

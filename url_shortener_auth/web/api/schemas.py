@@ -10,6 +10,10 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class TokenData(BaseModel):
+    """Schema for the token data"""
+
+    username: str | None = None
 
 class User(BaseModel):
     """Schema for the user"""
