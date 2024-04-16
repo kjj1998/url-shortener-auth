@@ -41,7 +41,7 @@ class AuthService:
             expire = datetime.now(timezone.utc) + timedelta(minutes=15)
 
         to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), os.getenv("HS256"))
+        encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), os.getenv("ALGORITHM"))
         return encoded_jwt
 
     def authenticate_user(
@@ -54,6 +54,8 @@ class AuthService:
             return False
         if not self.verify_password(password, user.hashed_password):
             return False
+
+        repo.update_user_last_login(username)
 
         return user
 
