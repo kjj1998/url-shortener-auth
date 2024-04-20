@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install libpq5 -y
 
 COPY alembic.ini ./
 COPY alembic ./alembic
-COPY url_shortener ./url_shortener
+COPY url_shortener_auth ./url_shortener_auth
 COPY entrypoint.sh ./entrypoint.sh
 COPY .env ./.env
 
