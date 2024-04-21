@@ -35,12 +35,14 @@ class AuthService:
         """Create the access token"""
 
         to_encode: dict = data.copy()
+        not_before_time = datetime.now(timezone.utc) - timedelta(seconds=1)
+        issued_at_time = datetime.now(timezone.utc)
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
         else:
             expire = datetime.now(timezone.utc) + timedelta(minutes=15)
 
-        to_encode.update({"exp": expire})
+        to_encode.update({"exp": expire, "iat": issued_at_time, "nbf": not_before_time})
         encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), os.getenv("ALGORITHM"))
         return encoded_jwt
 

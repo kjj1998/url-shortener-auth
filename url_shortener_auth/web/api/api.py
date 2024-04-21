@@ -7,12 +7,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 from url_shortener_auth.repository.auth_repository import AuthRepository
 from url_shortener_auth.auth_service.auth_service import AuthService
 from url_shortener_auth.web.api.schemas import Token, UserReceive, UserReturn, TokenData
 from url_shortener_auth.repository.unit_of_work import UnitOfWork
 from url_shortener_auth.auth_service.auth import User
-from jose import JWTError, jwt
 
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
