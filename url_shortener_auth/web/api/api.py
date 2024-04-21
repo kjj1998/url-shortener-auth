@@ -5,14 +5,20 @@ import os
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from url_shortener_auth.repository.auth_repository import AuthRepository
 from url_shortener_auth.auth_service.auth_service import AuthService
-from url_shortener_auth.web.api.schemas import Token, UserReceive, UserReturn, TokenData
+from url_shortener_auth.web.api.schemas import Token, UserReceive, UserReturn
 from url_shortener_auth.repository.unit_of_work import UnitOfWork
 from url_shortener_auth.auth_service.auth import User
+from url_shortener_auth.exceptions import (
+    credentials_exception,
+    authentication_exception,
+    username_wrong_match_exception,
+    user_already_registered_exception,
+)
 
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -37,11 +43,7 @@ async def login_for_access_token(
         )
 
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise authentication_exception
 
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = auth_service.create_access_token(
@@ -62,10 +64,7 @@ def register_user(user: UserReceive) -> UserReturn:
         auth_service: AuthService = AuthService(repo)
 
         if auth_service.get_user(repo, user.username) is not None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User already registered",
-            )
+            raise user_already_registered_exception
 
         user = auth_service.create_user(repo, user.username, user.password)
 
@@ -75,22 +74,17 @@ def register_user(user: UserReceive) -> UserReturn:
             last_login_at=user.last_login_at,
         )
 
-@router.get("/users/me/", response_model=UserReturn)
-async def get_user(token: Annotated[str, Depends(oauth2_scheme)]):
+
+@router.get("/users/{username}", response_model=UserReturn)
+async def get_user(username: str, token: Annotated[str, Depends(oauth2_scheme)]):
     """Get the user details based on information stored in the token"""
-
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
     try:
         payload = jwt.decode(token, os.getenv("SECRET_KEY"), os.getenv("ALGORITHM"))
-        username: str = payload.get("sub")
-        if username is None:
+        payload_username: str = payload.get("sub")
+        if payload_username is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        if payload_username != username:
+            raise username_wrong_match_exception
     except JWTError as exc:
         raise credentials_exception from exc
 
@@ -98,7 +92,7 @@ async def get_user(token: Annotated[str, Depends(oauth2_scheme)]):
         repo: AuthRepository = AuthRepository(unit_of_work.session)
         auth_service: AuthService = AuthService(repo)
 
-        user = auth_service.get_user(repo, token_data.username)
+        user = auth_service.get_user(repo, username)
 
     if user is None:
         raise credentials_exception
