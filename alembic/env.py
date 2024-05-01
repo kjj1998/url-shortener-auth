@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy.schema import CreateSchema
 from url_shortener_auth.repository.models import Base
 
 from alembic import context
@@ -98,6 +99,12 @@ def run_migrations_online() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
+
+    schema_name = os.getenv("POSTGRES_SCHEMA_NAME", "user_schema")
+
+    with connectable.connect() as connection:
+        connection.execute(CreateSchema(schema_name, if_not_exists=True))
+        connection.commit()
 
     with connectable.connect() as connection:
         context.configure(
