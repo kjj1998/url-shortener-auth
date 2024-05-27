@@ -1,0 +1,143 @@
+# Workflow to build image of url shortener auth and deploy to AWS EKS
+name: Deploy changes for URL shortener to AWS EKS
+run-name: ${{ github.actor }} is deploying changes for URL shortener auth
+
+# Controls when the action will run. Invokes the workflow on push events but only for the main branch
+on:
+  push:
+    branches: [ main ]
+env:
+  AWS_REGION : ap-southeast-1 # Change to reflect your Region
+  AWS_ACCOUNT_ID: 271407076537 # Change to reflect your AWS Account ID
+  LATEST_TAG: v0.0.0
+  NEW_TAG: v0.0.0
+  ECR_REPO_NAME: url-shortener-auth
+  LATEST_IMAGE_TAG: 0.0.0
+  NEW_IMAGE_TAG: 0.0.0
+  TF_VAR_GITHUB: true
+  TF_VAR_image_tag: 0.0.0
+
+# Permission can be added at job level or workflow level    
+permissions:
+    id-token: write   # This is required for requesting the JWT
+    contents: write    # This is required for actions/checkout
+
+jobs:
+  build_image:
+    name: 'Build image of URL shortener auth'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: .
+
+    steps:
+      - name: Git clone the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Git user
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.1
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/GitHubAction-url-shortener-auth # change to reflect your IAM role’s ARN
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create .env file
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          echo $TAG
+          echo "LATEST_TAG=$TAG" >> $GITHUB_ENV
+      
+      - name: Increment tag
+        id: increment_tag
+        run: |
+          if [ "${{ env.LATEST_TAG }}" = "v0.0.0" ]; then
+            NEW_TAG="v1.0.0"
+          else
+            BASE_VERSION=$(echo ${{ env.LATEST_TAG }} | sed 's/^v//')
+            NEW_TAG="v$(echo $BASE_VERSION | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}')"
+          fi
+          echo $NEW_TAG
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+      
+      - name: Tag the current commit
+        id: tag_commit
+        run: |
+          git tag -a ${{ env.NEW_TAG }} -m "Release version ${{ env.NEW_TAG }}"
+          git push origin ${{ env.NEW_TAG }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Retrieve the latest image tag from AWS ECR
+        id: retrieve_latest_ecr_tag
+        run: |
+          REPO_NAME=${{ env.ECR_REPO_NAME }}
+          LATEST_IMAGE_TAG=$(aws ecr describe-images --repository-name $REPO_NAME --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text)
+          echo "Latest tag is $LATEST_IMAGE_TAG"
+          echo "LATEST_IMAGE_TAG=$LATEST_IMAGE_TAG" >> $GITHUB_ENV
+      
+      - name: Increment image tag
+        id: increment_image_tag
+        run: |
+          if [ "${{ env.LATEST_IMAGE_TAG }}" = "0.0.0" ]; then
+            NEW_IMAGE_TAG="1.0.0"
+          else
+            BASE_VERSION=$(echo ${{ env.LATEST_IMAGE_TAG }} | sed 's/^v//')
+            NEW_IMAGE_TAG="$(echo $BASE_VERSION | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}')"
+          fi
+          echo $NEW_IMAGE_TAG
+          echo "NEW_IMAGE_TAG=$NEW_IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Build, tag and push Docker image to ECR repository
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ env.ECR_REPO_NAME }}
+          IMAGE_TAG: ${{ env.NEW_IMAGE_TAG }}
+        run: |
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: Update Terraform variable to be the latest image tag
+        run: |
+          echo "TF_VAR_image_tag=${{ env.NEW_IMAGE_TAG }}" >> $GITHUB_ENV
+          echo $TF_VAR_image_tag
+
+      - name: echo tag
+        run: echo ${{ env.TF_VAR_image_tag }}
+
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+      - name: Terraform init
+        working-directory: ./terraform-eks
+        run: terraform init
+
+      # Checks that all Terraform configuration files adhere to a canonical format
+      - name: Terraform Format
+        working-directory: ./terraform-eks
+        run: terraform fmt -recursive
+
+      # Generates an execution plan for Terraform
+      - name: Terraform Plan
+        working-directory: ./terraform-eks
+        run: |
+          echo ${{ env.TF_VAR_image_tag }}
+          terraform plan -var-file="variables.tfvars" -input=false
+
+      - name: Terraform Apply
+        working-directory: ./terraform-eks
+        run: terraform apply -var-file="variables.tfvars" -auto-approve
