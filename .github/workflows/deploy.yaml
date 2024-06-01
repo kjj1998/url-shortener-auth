@@ -27,6 +27,9 @@ jobs:
     name: 'Build image of URL shortener auth'
     runs-on: ubuntu-latest
 
+    outputs:
+      new_image_tag: ${{ steps.output_image_tag.outputs.new_image_tag }}
+
     defaults:
       run:
         shell: bash
@@ -123,7 +126,7 @@ jobs:
 
       - name: output new image tag to be used in the next job
         id: output_image_tag
-        run: echo "::set-output name=image_tag::${{ env.TF_VAR_image_tag }}"
+        run: echo "new_image_tag=${{ env.TF_VAR_image_tag }}" >> "$GITHUB_OUTPUT"
 
   deploy_pods:
     needs: [build_image]
@@ -134,6 +137,9 @@ jobs:
       run:
         shell: bash
         working-directory: ./terraform
+
+    env:
+      new_image_tag: ${{ needs.build_image.outputs.new_image_tag }}
 
     steps:
       - name: Git clone the repository
@@ -173,7 +179,7 @@ jobs:
       - name: Terraform Plan
         run: |
           echo ${{ env.TF_VAR_image_tag }}
-            terraform plan -var="image_tag=${{ needs.build_image.outputs.image_tag }}" -var-file="variables.tfvars" -input=false
+            terraform plan -var="image_tag=$new_image_tag" -var-file="variables.tfvars" -input=false
 
-      - name: Terraform Apply
-        run: terraform apply -var-file="variables.tfvars" -auto-approve
+      # - name: Terraform Apply
+      #   run: terraform apply -var-file="variables.tfvars" -auto-approve
