@@ -182,4 +182,4 @@ jobs:
           terraform plan -var="image_tag=$new_image_tag" -var-file="variables.tfvars" -input=false
 
       - name: Terraform Apply
-        run: terraform apply -var="image_tag=$new_image_tag" -var-file="variables.tfvars" -input=false
+        run: terraform apply -var="image_tag=$new_image_tag" -var-file="variables.tfvars" -auto-approve
