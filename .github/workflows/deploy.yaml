@@ -121,27 +121,6 @@ jobs:
       - name: echo tag
         run: echo ${{ env.TF_VAR_image_tag }}
 
-      # # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-      # - name: Terraform init
-      #   working-directory: ./terraform-eks
-      #   run: terraform init
-
-      # # Checks that all Terraform configuration files adhere to a canonical format
-      # - name: Terraform Format
-      #   working-directory: ./terraform-eks
-      #   run: terraform fmt -recursive
-
-      # # Generates an execution plan for Terraform
-      # - name: Terraform Plan
-      #   working-directory: ./terraform-eks
-      #   run: |
-      #     echo ${{ env.TF_VAR_image_tag }}
-      #     terraform plan -var-file="variables.tfvars" -input=false
-
-      # - name: Terraform Apply
-      #   working-directory: ./terraform-eks
-      #   run: terraform apply -var-file="variables.tfvars" -auto-approve
-
   deploy_pods:
     needs: [build_image]
     name: 'Build pods of URL shortener auth'
@@ -172,6 +151,11 @@ jobs:
 
       - name: Create .env file
         run: echo "${{ secrets.ENV_FILE }}" > .env
+      
+      - name: Setup Terraform with specified version on the runner
+        uses:  hashicorp/setup-terraform@v3.0.0
+        with:
+          terraform_version: "1.8.3"
       
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
       - name: Terraform init
