@@ -53,6 +53,9 @@ jobs:
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Create .env file
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
       - name: Get latest tag
         id: get_tag
         run: |
@@ -147,9 +150,6 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/GitHubAction-url-shortener-auth # change to reflect your IAM role’s ARN
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Create .env file
-        run: echo "${{ secrets.ENV_FILE }}" > .env
       
       - name: Setup Terraform with specified version on the runner
         uses:  hashicorp/setup-terraform@v3.0.0
