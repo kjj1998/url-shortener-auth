@@ -121,6 +121,10 @@ jobs:
       - name: echo tag
         run: echo ${{ env.TF_VAR_image_tag }}
 
+      - name: output new image tag to be used in the next job
+        id: output_image_tag
+        run: echo "::set-output name=image_tag::${{ env.TF_VAR_image_tag }}"
+
   deploy_pods:
     needs: [build_image]
     name: 'Build pods of URL shortener auth'
@@ -169,7 +173,7 @@ jobs:
       - name: Terraform Plan
         run: |
           echo ${{ env.TF_VAR_image_tag }}
-          terraform plan -var-file="variables.tfvars" -input=false
+            terraform plan -var="image_tag=${{ needs.build_image.outputs.image_tag }}" -var-file="variables.tfvars" -input=false
 
       - name: Terraform Apply
         run: terraform apply -var-file="variables.tfvars" -auto-approve
