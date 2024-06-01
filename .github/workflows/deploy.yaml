@@ -178,8 +178,8 @@ jobs:
       # Generates an execution plan for Terraform
       - name: Terraform Plan
         run: |
-          echo ${{ env.TF_VAR_image_tag }}
-            terraform plan -var="image_tag=$new_image_tag" -var-file="variables.tfvars" -input=false
+          echo $new_image_tag
+          terraform plan -var="image_tag=$new_image_tag" -var-file="variables.tfvars" -input=false
 
-      # - name: Terraform Apply
-      #   run: terraform apply -var-file="variables.tfvars" -auto-approve
+      - name: Terraform Apply
+        run: terraform apply -var="image_tag=$new_image_tag" -var-file="variables.tfvars" -input=false
