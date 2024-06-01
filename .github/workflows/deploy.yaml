@@ -53,9 +53,6 @@ jobs:
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Create .env file
-        run: echo "${{ secrets.ENV_FILE }}" > .env
-
       - name: Get latest tag
         id: get_tag
         run: |
@@ -116,17 +113,9 @@ jobs:
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 
-      - name: Update Terraform variable to be the latest image tag
-        run: |
-          echo "TF_VAR_image_tag=${{ env.NEW_IMAGE_TAG }}" >> $GITHUB_ENV
-          echo $TF_VAR_image_tag
-
-      - name: echo tag
-        run: echo ${{ env.TF_VAR_image_tag }}
-
       - name: output new image tag to be used in the next job
         id: output_image_tag
-        run: echo "new_image_tag=${{ env.TF_VAR_image_tag }}" >> "$GITHUB_OUTPUT"
+        run: echo "new_image_tag=${{ env.NEW_IMAGE_TAG }}" >> "$GITHUB_OUTPUT"
 
   deploy_pods:
     needs: [build_image]
